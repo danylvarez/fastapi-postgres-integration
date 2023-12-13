@@ -1,0 +1,58 @@
+version: '3.1'
+
+services:
+  postgres:
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: [ 'CMD', 'pg_isready', '-U', 'test' ]
+      interval: 5s
+      retries: 5
+    volumes:
+      - ./postgres/script/init_postgres.sql:/docker-entrypoint-initdb.d/init_postgres.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - postgres
+
+  centos:
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile.centos
+    networks:
+      - postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./postgres:/postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=postgres
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.fastapi
+    command: uvicorn app.main:app --host 0.0.0.0 --reload
+    volumes:
+      - .:/app
+    ports:
+      - 8008:8000
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  postgres:
+    driver: bridge

@@ -1,0 +1,13 @@
+FROM centos:7
+
+# Instalar PostgreSQL client
+RUN yum install -y postgresql
+
+# Copiar el script
+COPY ./script/load_data.sh /load_data.sh
+COPY ./data/users_data.csv /users_data.csv
+
+RUN chmod +x /load_data.sh
+
+# Configurar el script para que se ejecute al inicio
+CMD ["/load_data.sh"]
